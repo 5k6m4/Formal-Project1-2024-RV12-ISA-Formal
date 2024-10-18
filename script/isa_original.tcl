@@ -34,4 +34,11 @@ assume {core.wb_exceptions == 1'b0}
 assume {core.id_unit.my_exceptions == 1'b0}
 assume {dmem_ctrl_inst.pma_exception == 1'b0}
 
+# set clock and reset signal
+clock HCLK
+reset ~HRESETn
+
+# set maximum runtime
+set_prove_time_limit 259200s
+
 prove -all
