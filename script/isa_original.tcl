@@ -34,6 +34,10 @@ assume {core.wb_exceptions == 1'b0}
 assume {core.id_unit.my_exceptions == 1'b0}
 assume {dmem_ctrl_inst.pma_exception == 1'b0}
 
+# icache always hit
+stopat core.if_unit.imem_parcel_valid_i
+assume {core.if_unit.imem_parcel_valid_i == 1'b1}
+
 # set clock and reset signal
 clock HCLK
 reset ~HRESETn
