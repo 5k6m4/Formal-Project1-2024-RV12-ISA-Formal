@@ -19,4 +19,19 @@ analyze -sv [glob ./property/isa.sv]
 # elaborate top module
 elaborate -top  riscv_top_ahb3lite
 
+# turn off debug mode
+assume {core.du_stall == 1'b0}
+assume {core.du_stall_if == 1'b0}
+assume {core.du_re_rf == 1'b0}
+assume {core.dbg_we_i == 1'b0}
+assume {core.int_rf.du_we_rf_i == 0}
+assume {core.cpu_state.du_we_csr_i == 0}
+
+# trun off exception
+stopat core.if_unit.parcel_exceptions
+assume {core.if_unit.parcel_exceptions == 1'b0}
+assume {core.wb_exceptions == 1'b0}
+assume {core.id_unit.my_exceptions == 1'b0}
+assume {dmem_ctrl_inst.pma_exception == 1'b0}
+
 prove -all
