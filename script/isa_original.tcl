@@ -38,6 +38,33 @@ assume {dmem_ctrl_inst.pma_exception == 1'b0}
 stopat core.if_unit.imem_parcel_valid_i
 assume {core.if_unit.imem_parcel_valid_i == 1'b1}
 
+# always fetch legal instruction
+stopat core.if_unit.imem_parcel_i
+assume {core.if_unit.imem_parcel_i[6:0] == 7'b0110111 ||
+        core.if_unit.imem_parcel_i[6:0] == 7'b0010111 ||
+        core.if_unit.imem_parcel_i[6:0] == 7'b1101111 ||
+        core.if_unit.imem_parcel_i[6:0] == 7'b1100111 ||
+        (core.if_unit.imem_parcel_i[6:0] == 7'b1100011
+            && core.if_unit.imem_parcel_i[14:12] != 3'b010
+            && core.if_unit.imem_parcel_i[14:12] != 3'b011) ||
+        (core.if_unit.imem_parcel_i[6:0] == 7'b0000011
+            && core.if_unit.imem_parcel_i[14:12] != 3'b011
+            && core.if_unit.imem_parcel_i[14:12] != 3'b110
+            && core.if_unit.imem_parcel_i[14:12] != 3'b111) ||
+        (core.if_unit.imem_parcel_i[6:0] == 7'b0100011
+            && (core.if_unit.imem_parcel_i[14:12] == 3'b000
+                || core.if_unit.imem_parcel_i[14:12] == 3'b001
+                || core.if_unit.imem_parcel_i[14:12] == 3'b010)) ||
+        core.if_unit.imem_parcel_i[6:0] == 7'b0010011 ||
+        (core.if_unit.imem_parcel_i[6:0] == 7'b0110011
+            && (core.if_unit.imem_parcel_i[31:25] == 7'b0000000
+                || core.if_unit.imem_parcel_i[31:25] == 7'b0100000)) ||
+        (core.if_unit.imem_parcel_i[6:0] == 7'b0001111
+            && (core.if_unit.imem_parcel_i[14:12] == 3'b000
+                || core.if_unit.imem_parcel_i[14:12] == 3'b001)) ||
+        (core.if_unit.imem_parcel_i[6:0] == 7'b1110011
+            && core.if_unit.imem_parcel_i[14:12] != 3'b100)}
+
 # set clock and reset signal
 clock HCLK
 reset ~HRESETn
