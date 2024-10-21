@@ -67,7 +67,7 @@ assume {core.if_unit.imem_parcel_i[6:0] == 7'b0110111 ||
 
 # set clock and reset signal
 clock HCLK
-reset ~HRESETn
+reset HRESETn
 
 # set maximum runtime
 set_prove_time_limit 259200s
