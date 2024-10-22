@@ -205,6 +205,7 @@ module isa (
   logic [4:0] wb_rd_idx;
   logic [31:0] wb_value;
   logic wb_we;
+  logic [4:0] stable_regs_idx;
 
   always_comb begin
     regfile[0] = 32'd0;
@@ -253,6 +254,14 @@ module isa (
     ((wb_rd_idx != 5'd0) && (wb_we == 1'b1))
     |->
     ##1 regfile[$past(wb_rd_idx)] == $past(wb_value)
+  );
+
+  assume property(stable_regs_idx != wb_rd_idx);
+  rf_value_stable: assert property(
+    @(posedge clk) disable iff(!rst_n)
+    (wb_we == 1'b0)
+    |=>
+    regfile[$past(stable_regs_idx)] == $past(regfile[stable_regs_idx])
   );
 
 endmodule
