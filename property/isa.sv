@@ -200,16 +200,17 @@ module isa (
   //-----------------
   //  Register File
   //-----------------
-  logic rf_regout;
+
+  // Variables
+  logic [31:0][0:31] regfile;
+
   logic rf_pd_stall, rf_id_stall;
   logic [4:0] rf_rs1_idx, rf_rs2_idx;
   logic [31:0] rf_rs1_value, rf_rs2_value;
 
-  logic [31:0][0:31] regfile;
   logic [4:0] wb_rd_idx;
   logic [31:0] wb_value;
   logic wb_we;
-  
   logic [4:0] stable_regs_idx;
 
   always_comb begin
