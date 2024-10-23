@@ -200,11 +200,16 @@ module isa (
   //-----------------
   //  Register File
   //-----------------
+  logic rf_regout;
+  logic rf_pd_stall, rf_id_stall;
+  logic [4:0] rf_rs1_idx, rf_rs2_idx;
+  logic [31:0] rf_rs1_value, rf_rs2_value;
 
   logic [31:0][0:31] regfile;
   logic [4:0] wb_rd_idx;
   logic [31:0] wb_value;
   logic wb_we;
+  
   logic [4:0] stable_regs_idx;
 
   always_comb begin
@@ -242,18 +247,40 @@ module isa (
     regfile[31] = core.int_rf.rf[31];
   end
 
+  assign rf_pd_stall = core.int_rf.pd_stall_i;
+  assign rf_id_stall = core.int_rf.id_stall_i;
+  assign rf_rs1_idx = core.int_rf.rf_src1_i;
+  assign rf_rs2_idx = core.int_rf.rf_src2_i;
+  assign rf_rs1_value = core.int_rf.rf_src1_q_o;
+  assign rf_rs2_value = core.int_rf.rf_src2_q_o;
+
   assign wb_rd_idx = core.wb_unit.wb_dst_o;
   assign wb_value = core.wb_unit.wb_r_o;
   assign wb_we = core.wb_unit.wb_we_o;
-
+  
   //------------------------------------------
   //  Properties for verifying register file
   //------------------------------------------
+
+  rf_read_check_rs1: assert property(
+    @(posedge clk) disable iff(!rst_n)
+    (($past(rf_pd_stall) == 1'b0) && (rf_id_stall == 1'b0))
+    |=>
+    rf_rs1_value == $past(regfile[$past(rf_rs1_idx)])
+  );
+
+  rf_read_check_rs2: assert property(
+    @(posedge clk) disable iff(!rst_n)
+    (($past(rf_pd_stall) == 1'b0) && (rf_id_stall == 1'b0))
+    |=>
+    rf_rs2_value == $past(regfile[$past(rf_rs2_idx)])
+  );
+  
   rf_write_check: assert property(
     @(posedge clk) disable iff(!rst_n)
     ((wb_rd_idx != 5'd0) && (wb_we == 1'b1))
-    |->
-    ##1 regfile[$past(wb_rd_idx)] == $past(wb_value)
+    |=>
+    regfile[$past(wb_rd_idx)] == $past(wb_value)
   );
 
   assume property(stable_regs_idx != wb_rd_idx);
