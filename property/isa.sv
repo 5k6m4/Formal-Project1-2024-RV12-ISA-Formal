@@ -261,7 +261,6 @@ module isa (
   //------------------------------------------
   //  Properties for verifying register file
   //------------------------------------------
-
   rf_read_rs1: assert property(
     @(posedge clk) disable iff(!rst_n)
     (($past(rf_pd_stall) == 1'b0) && (rf_id_stall == 1'b0))
@@ -289,6 +288,67 @@ module isa (
     (rf_we == 1'b0)
     |=>
     regfile[$past(rf_stable_reg_idx)] == $past(regfile[rf_stable_reg_idx])
+  );
+
+  //-------------------------------------
+  //  Logics for verifying instructions
+  //-------------------------------------
+
+  logic [4:0] wb_rd_idx;
+  logic [31:0] wb_value;
+  logic wb_we;
+
+  logic [4:0] gold_wb_rs1_idx, gold_wb_rs2_idx, gold_wb_rd_idx;
+  logic [31:0] gold_wb_rs1_value, gold_wb_rs2_value;
+  logic gold_wb_we;
+
+  assign wb_rd_idx = core.wb_unit.wb_dst_o;
+  assign wb_value = core.wb_unit.wb_r_o;
+  assign wb_we = core.wb_unit.wb_we_o;
+
+  assign gold_wb_rs1_idx = wb_inst[19:15];
+  assign gold_wb_rs2_idx = wb_inst[24:20];
+  assign gold_wb_rd_idx = wb_inst[11:7];
+
+  assign gold_wb_rs1_value = regfile[gold_wb_rs1_idx];
+  assign gold_wb_rs2_value = regfile[gold_wb_rs2_idx];
+
+  assign gold_wb_we = (~mem_bubble) & (|gold_wb_rd_idx);
+
+  //----------------
+  //  I-type: andi
+  //----------------
+
+  logic andi_trigger;
+  logic [31:0] andi_imm;
+  logic [31:0] andi_golden;
+
+  assign andi_trigger = (wb_inst[6:0] == 7'b0010011) && (wb_inst[14:12] == 3'b111);
+  assign andi_imm = {{20{wb_inst[31]}}, wb_inst[31:20]};
+  assign andi_golden = gold_wb_rs1_value & andi_imm;
+
+  //---------------------------------------------
+  //  Properties for verifying instruction andi
+  //---------------------------------------------
+  andi_we: assert property(
+    @(posedge clk) disable iff(!rst_n)
+    andi_trigger
+    |=>
+    wb_we == $past(gold_wb_we)
+  );
+
+  andi_rd_idx: assert property(
+    @(posedge clk) disable iff(!rst_n)
+    andi_trigger
+    |->
+    wb_rd_idx == gold_wb_rd_idx
+  );
+
+  andi_wb_value: assert property(
+    @(posedge clk) disable iff(!rst_n)
+    andi_trigger
+    |->
+    wb_value == andi_golden
   );
 
 endmodule
