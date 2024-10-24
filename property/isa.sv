@@ -201,18 +201,15 @@ module isa (
   //  Register File
   //-----------------
 
-  // Variables
+  // Logics for verifying register file
   logic [31:0][0:31] regfile;
-
   logic rf_pd_stall, rf_id_stall;
-  logic [4:0] rf_rs1_idx, rf_rs2_idx;
-  logic [31:0] rf_rs1_value, rf_rs2_value;
+  logic [4:0] rf_rs1_idx, rf_rs2_idx, rf_rd_idx;
+  logic [31:0] rf_rs1_value, rf_rs2_value, rf_wb_value;
+  logic rf_we;
+  logic [4:0] rf_stable_reg_idx;
 
-  logic [4:0] wb_rd_idx;
-  logic [31:0] wb_value;
-  logic wb_we;
-  logic [4:0] stable_regs_idx;
-
+  // get the value stored in RV12 register file
   always_comb begin
     regfile[0] = 32'd0;
     regfile[1] = core.int_rf.rf[1];
@@ -250,46 +247,48 @@ module isa (
 
   assign rf_pd_stall = core.int_rf.pd_stall_i;
   assign rf_id_stall = core.int_rf.id_stall_i;
+
   assign rf_rs1_idx = core.int_rf.rf_src1_i;
   assign rf_rs2_idx = core.int_rf.rf_src2_i;
+  assign rf_rd_idx = core.wb_unit.wb_dst_o;
+  
   assign rf_rs1_value = core.int_rf.rf_src1_q_o;
   assign rf_rs2_value = core.int_rf.rf_src2_q_o;
+  assign rf_wb_value = core.wb_unit.wb_r_o;
 
-  assign wb_rd_idx = core.wb_unit.wb_dst_o;
-  assign wb_value = core.wb_unit.wb_r_o;
-  assign wb_we = core.wb_unit.wb_we_o;
+  assign rf_we = core.wb_unit.wb_we_o;
   
   //------------------------------------------
   //  Properties for verifying register file
   //------------------------------------------
 
-  rf_read_check_rs1: assert property(
+  rf_read_rs1: assert property(
     @(posedge clk) disable iff(!rst_n)
     (($past(rf_pd_stall) == 1'b0) && (rf_id_stall == 1'b0))
     |=>
     rf_rs1_value == $past(regfile[$past(rf_rs1_idx)])
   );
 
-  rf_read_check_rs2: assert property(
+  rf_read_rs2: assert property(
     @(posedge clk) disable iff(!rst_n)
     (($past(rf_pd_stall) == 1'b0) && (rf_id_stall == 1'b0))
     |=>
     rf_rs2_value == $past(regfile[$past(rf_rs2_idx)])
   );
   
-  rf_write_check: assert property(
+  rf_write: assert property(
     @(posedge clk) disable iff(!rst_n)
-    ((wb_rd_idx != 5'd0) && (wb_we == 1'b1))
+    ((rf_rd_idx != 5'd0) && (rf_we == 1'b1))
     |=>
-    regfile[$past(wb_rd_idx)] == $past(wb_value)
+    regfile[$past(rf_rd_idx)] == $past(rf_wb_value)
   );
 
-  assume property(stable_regs_idx != wb_rd_idx);
+  assume property(rf_stable_reg_idx != rf_rd_idx);
   rf_value_stable: assert property(
     @(posedge clk) disable iff(!rst_n)
-    (wb_we == 1'b0)
+    (rf_we == 1'b0)
     |=>
-    regfile[$past(stable_regs_idx)] == $past(regfile[stable_regs_idx])
+    regfile[$past(rf_stable_reg_idx)] == $past(regfile[rf_stable_reg_idx])
   );
 
 endmodule
