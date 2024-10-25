@@ -294,6 +294,7 @@ module isa (
   //  Logics for verifying instructions
   //-------------------------------------
 
+  logic mem_bubble_q;
   logic [4:0] wb_rd_idx;
   logic [31:0] wb_value;
   logic wb_we;
@@ -301,6 +302,14 @@ module isa (
   logic [4:0] gold_wb_rs1_idx, gold_wb_rs2_idx, gold_wb_rd_idx;
   logic [31:0] gold_wb_rs1_value, gold_wb_rs2_value;
   logic gold_wb_we;
+
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      mem_bubble_q <= 1'b1;
+    end else begin
+      mem_bubble_q <= mem_bubble;
+    end
+  end
 
   assign wb_rd_idx = core.wb_unit.wb_dst_o;
   assign wb_value = core.wb_unit.wb_r_o;
@@ -323,7 +332,7 @@ module isa (
   logic [31:0] andi_imm;
   logic [31:0] andi_golden;
 
-  assign andi_trigger = (wb_inst[6:0] == 7'b0010011) && (wb_inst[14:12] == 3'b111);
+  assign andi_trigger = (wb_inst[6:0] == 7'b0010011) && (wb_inst[14:12] == 3'b111) && !mem_bubble_q;
   assign andi_imm = {{20{wb_inst[31]}}, wb_inst[31:20]};
   assign andi_golden = gold_wb_rs1_value & andi_imm;
 
@@ -359,7 +368,7 @@ module isa (
   logic [31:0] auipc_imm;
   logic [31:0] auipc_golden;
 
-  assign auipc_trigger = (wb_inst[6:0] == 7'b0010111) ;
+  assign auipc_trigger = (wb_inst[6:0] == 7'b0010111) && !mem_bubble_q;
   assign auipc_imm = {wb_inst[31:12], 12'b0};
   assign auipc_golden = wb_pc + auipc_imm;
 
