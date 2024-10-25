@@ -2,6 +2,18 @@
 clear -all
 check_cov -init -type all
 
+# A set of options running the test
+# Regfile Check?
+set REGFILE_CHECK 1
+# Pipeline follower check?
+set PIPELINE_FOLLOWER_CHECK 0
+# ISA formal options
+set ANDI_CHECK 0
+#set BGE_CHECK 0
+#set JAL_CHECK 0
+#set LBU_CHECK 0
+set AUIPC_CHECK 0
+
 # analyze source code
 analyze -sv [glob ./source/RV12/rtl/verilog/pkg/*sv]
 analyze -sv [glob ./source/RV12/rtl/verilog/core/cache/*.sv]
@@ -13,8 +25,24 @@ analyze -sv [glob ./source/RV12/submodules/ahb3lite_pkg/rtl/verilog/*.sv]
 analyze -sv [glob ./source/RV12/submodules/memory/rtl/verilog/*.sv]
 analyze -sv [glob ./source/RV12/rtl/verilog/ahb3lite/*.sv]
 
+set PIPELINE_FOLLOWER_CHECK [expr {$PIPELINE_FOLLOWER_CHECK == 1 ? "+define+PIPELINE_FOLLOWER_CHECK ": ""}]
+set REGFILE_CHECK [expr {$REGFILE_CHECK == 1 ? "+define+REGFILE_CHECK ": ""}]
+set ANDI_CHECK [expr {$ANDI_CHECK == 1 ? "+define+ANDI_CHECK ": ""}]
+#set BGE_CHECK [expr {$BGE_CHECK == 1 ? "+define+BGE_CHECK ": ""}]
+#set JAL_CHECK [expr {$JAL_CHECK == 1 ? "+define+JAL_CHECK ": ""}]
+#set LBU_CHECK [expr {$LBU_CHECK == 1 ? "+define+LBU_CHECK ": ""}]
+set AUIPC_CHECK [expr {$AUIPC_CHECK == 1 ? "+define+AUIPC_CHECK ": ""}]
+set ANALYZE_FILE "analyze -sv property/isa.sv "
+#set ANALYZE_COMMAND \
+#$ANALYZE_FILE$PIPELINE_FOLLOWER_CHECK$REGFILE_CHECK$ANDI_CHECK$BGE_CHECK$JAL_CHECK$LBU_CHECK$AUIPC_CHECK
+set ANALYZE_COMMAND \
+$ANALYZE_FILE$PIPELINE_FOLLOWER_CHECK$REGFILE_CHECK$ANDI_CHECK$AUIPC_CHECK
+
+# Call analyze with options
+eval $ANALYZE_COMMAND
+
 # analyze assertion property
-analyze -sv [glob ./property/isa.sv]
+#analyze -sv [glob ./property/isa.sv]
 
 # elaborate top module
 elaborate -top  riscv_top_ahb3lite

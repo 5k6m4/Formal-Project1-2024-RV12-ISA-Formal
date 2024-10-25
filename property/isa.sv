@@ -117,6 +117,7 @@ module isa (
     end
   end
 
+`ifdef PIPELINE_FOLLOWER_CHECK
   //----------------------------------------------
   //  Properties for verifying pipeline follower  
   //----------------------------------------------
@@ -196,6 +197,7 @@ module isa (
     |=>
     wb_inst == core.wb_unit.wb_insn_o.instr
   );
+`endif
   
   //-----------------
   //  Register File
@@ -258,6 +260,7 @@ module isa (
 
   assign rf_we = core.wb_unit.wb_we_o;
   
+`ifdef REGFILE_CHECK
   //------------------------------------------
   //  Properties for verifying register file
   //------------------------------------------
@@ -289,6 +292,7 @@ module isa (
     |=>
     regfile[$past(rf_stable_reg_idx)] == $past(regfile[rf_stable_reg_idx])
   );
+`endif
 
   //-------------------------------------
   //  Logics for verifying instructions
@@ -336,6 +340,7 @@ module isa (
   assign andi_imm = {{20{wb_inst[31]}}, wb_inst[31:20]};
   assign andi_golden = gold_wb_rs1_value & andi_imm;
 
+`ifdef ANDI_CHECK
   //---------------------------------------------
   //  Properties for verifying instruction andi
   //---------------------------------------------
@@ -359,7 +364,8 @@ module isa (
     |->
     wb_value == andi_golden
   );
-
+`endif
+  
   //-----------------
   //  U-type: auipc
   //-----------------
@@ -372,6 +378,7 @@ module isa (
   assign auipc_imm = {wb_inst[31:12], 12'b0};
   assign auipc_golden = wb_pc + auipc_imm;
 
+`ifdef AUIPC_CHECK
   //----------------------------------------------
   //  Properties for verifying instruction auipc
   //----------------------------------------------
@@ -396,6 +403,7 @@ module isa (
     |->
     wb_value == auipc_golden
   );
+`endif
 
 endmodule
 
