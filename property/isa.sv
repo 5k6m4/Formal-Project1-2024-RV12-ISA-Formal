@@ -351,6 +351,43 @@ module isa (
     wb_value == andi_golden
   );
 
+  //-----------------
+  //  U-type: auipc
+  //-----------------
+
+  logic auipc_trigger;
+  logic [31:0] auipc_imm;
+  logic [31:0] auipc_golden;
+
+  assign auipc_trigger = (wb_inst[6:0] == 7'b0010111) ;
+  assign auipc_imm = {wb_inst[31:12], 12'b0};
+  assign auipc_golden = wb_pc + auipc_imm;
+
+  //----------------------------------------------
+  //  Properties for verifying instruction auipc
+  //----------------------------------------------
+
+  auipc_we: assert property(
+    @(posedge clk) disable iff(!rst_n)
+    auipc_trigger
+    |=>
+    wb_we == $past(gold_wb_we)
+  );
+
+  auipc_rd: assert property(
+    @(posedge clk) disable iff(!rst_n)
+    auipc_trigger
+    |->
+    wb_rd_idx == gold_wb_rd_idx
+  );
+
+  auipc_wb_value: assert property(
+    @(posedge clk) disable iff(!rst_n)
+    auipc_trigger
+    |->
+    wb_value == auipc_golden
+  );
+
 endmodule
 
 bind riscv_top_ahb3lite isa isa_prop(
