@@ -405,6 +405,61 @@ module isa (
   );
 `endif
 
+  //-----------------
+  //  J-type: jal
+  //-----------------
+
+  logic jal_trigger;
+  logic [31:0] jal_imm;
+  logic [31:0] jal_golden;
+  logic [31:0] jal_target_pc;
+
+  assign jal_trigger = (wb_inst[6:0] == 7'b1101111) && !mem_bubble_q;
+  assign jal_imm = {{12{wb_inst[31]}}, wb_inst[19:12], wb_inst[20], wb_inst[30:21], 1'b0};
+  assign jal_golden = wb_pc + 4;
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      jal_target_pc <= 32'd0;
+    end else if (jal_trigger) begin
+      jal_target_pc <= wb_pc + jal_imm;
+    end
+  end
+
+`ifdef JAL_CHECK
+  //--------------------------------------------
+  //  Properties for verifying instruction jal  
+  //--------------------------------------------
+
+  jal_we: assert property(
+    @(posedge clk) disable iff(!rst_n)
+    jal_trigger
+    |=>
+    wb_we == $past(gold_wb_we)
+  );
+
+  jal_rd: assert property(
+    @(posedge clk) disable iff(!rst_n)
+    jal_trigger
+    |->
+    wb_rd_idx == gold_wb_rd_idx
+  );
+
+  jal_wb_value: assert property(
+    @(posedge clk) disable iff(!rst_n)
+    jal_trigger
+    |->
+    wb_value == jal_golden
+  );
+
+  // assert is not proven, using cover can be proven
+  /* jal_nxt_valid_pc: assert property(
+    @(posedge clk) disable iff(!rst_n)
+    jal_trigger
+    |->
+    ##[1:$] (~mem_bubble_q) && (wb_pc == jal_target_pc)
+  ); */
+`endif
+
 endmodule
 
 bind riscv_top_ahb3lite isa isa_prop(

@@ -4,13 +4,13 @@ check_cov -init -type all
 
 # A set of options running the test
 # Regfile Check?
-set REGFILE_CHECK 1
+set REGFILE_CHECK 0
 # Pipeline follower check?
 set PIPELINE_FOLLOWER_CHECK 0
 # ISA formal options
 set ANDI_CHECK 0
 #set BGE_CHECK 0
-#set JAL_CHECK 0
+set JAL_CHECK 1
 #set LBU_CHECK 0
 set AUIPC_CHECK 0
 
@@ -29,14 +29,14 @@ set PIPELINE_FOLLOWER_CHECK [expr {$PIPELINE_FOLLOWER_CHECK == 1 ? "+define+PIPE
 set REGFILE_CHECK [expr {$REGFILE_CHECK == 1 ? "+define+REGFILE_CHECK ": ""}]
 set ANDI_CHECK [expr {$ANDI_CHECK == 1 ? "+define+ANDI_CHECK ": ""}]
 #set BGE_CHECK [expr {$BGE_CHECK == 1 ? "+define+BGE_CHECK ": ""}]
-#set JAL_CHECK [expr {$JAL_CHECK == 1 ? "+define+JAL_CHECK ": ""}]
+set JAL_CHECK [expr {$JAL_CHECK == 1 ? "+define+JAL_CHECK ": ""}]
 #set LBU_CHECK [expr {$LBU_CHECK == 1 ? "+define+LBU_CHECK ": ""}]
 set AUIPC_CHECK [expr {$AUIPC_CHECK == 1 ? "+define+AUIPC_CHECK ": ""}]
 set ANALYZE_FILE "analyze -sv property/isa.sv "
 #set ANALYZE_COMMAND \
 #$ANALYZE_FILE$PIPELINE_FOLLOWER_CHECK$REGFILE_CHECK$ANDI_CHECK$BGE_CHECK$JAL_CHECK$LBU_CHECK$AUIPC_CHECK
 set ANALYZE_COMMAND \
-$ANALYZE_FILE$PIPELINE_FOLLOWER_CHECK$REGFILE_CHECK$ANDI_CHECK$AUIPC_CHECK
+$ANALYZE_FILE$PIPELINE_FOLLOWER_CHECK$REGFILE_CHECK$ANDI_CHECK$AUIPC_CHECK$JAL_CHECK
 
 # Call analyze with options
 eval $ANALYZE_COMMAND
