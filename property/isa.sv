@@ -13,11 +13,11 @@ module isa (
   // Variables
   logic [31:0] if_pc, pd_pc, id_pc, ex_pc, mem_pc, wb_pc;
   logic [31:0] if_inst, pd_inst, id_inst, ex_inst, mem_inst, wb_inst;
-  logic if_bubble, pd_bubble, id_bubble, ex_bubble, mem_bubble;
+  logic if_bubble, pd_bubble, id_bubble, ex_bubble, mem_bubble, wb_bubble;
   logic id_stall;
   logic bu_flush;
   logic ex_exception;
-  logic is_branch;
+  logic ex_is_branch, mem_is_branch, wb_is_branch;
 
   // IF stage
   assign if_pc = core.if_unit.if_pc_o;
@@ -68,7 +68,6 @@ module isa (
   // EX stage
   assign bu_flush = core.ex_units.bu_flush_o;
   assign ex_exception = core.ex_units.ex_exceptions_o.any;
-  assign is_branch = (id_inst[6:2] == 5'b11000);
   always_ff @(posedge clk or negedge rst_n) begin
     if(!rst_n) begin
       ex_pc <= 32'h200; //PC_INIT
@@ -81,10 +80,19 @@ module isa (
   always_ff @(posedge clk or negedge rst_n) begin
     if(!rst_n) begin
       ex_bubble <= 1'b1;
-    end else if(ex_exception || is_branch)begin
+    end else if(ex_exception)begin
       ex_bubble <= 1'b1;
     end else begin
       ex_bubble <= id_bubble;
+    end
+  end
+  always_ff @(posedge clk or negedge rst_n) begin
+    if(!rst_n) begin
+      ex_is_branch <= 1'b0;
+    end else if(id_inst[6:2] == 5'b11000)begin
+      ex_is_branch <= 1'b1;
+    end else begin
+      ex_is_branch <= 1'b0;
     end
   end
 
@@ -101,8 +109,10 @@ module isa (
   always_ff @(posedge clk or negedge rst_n) begin
     if(!rst_n) begin
       mem_bubble <= 1'b1;
+      mem_is_branch <= 1'b0;
     end else begin
       mem_bubble <= ex_bubble;
+      mem_is_branch <= ex_is_branch;
     end
   end
 
@@ -111,9 +121,13 @@ module isa (
     if(!rst_n) begin
       wb_pc <= 32'h200; //PC_INIT
       wb_inst <= 32'h13; //NOP
+      wb_is_branch <= 1'b0;
+      wb_bubble <= 1'b1;
     end else begin 
       wb_pc <= mem_pc;
       wb_inst <= mem_inst;
+      wb_is_branch <= mem_is_branch;
+      wb_bubble <= mem_bubble;
     end
   end
 
@@ -155,7 +169,7 @@ module isa (
   );
   ex_bubble_check: assert property(
     @(posedge clk) disable iff(!rst_n)
-    ex_bubble == core.ex_units.ex_insn_o.bubble
+    (ex_bubble | ex_is_branch) == core.ex_units.ex_insn_o.bubble
   );
   ex_pc_check: assert property(
     @(posedge clk) disable iff(!rst_n)
@@ -171,7 +185,7 @@ module isa (
   );
   mem_bubble_check: assert property(
     @(posedge clk) disable iff(!rst_n)
-    mem_bubble == core.mem_unit0.mem_insn_o.bubble
+    (mem_bubble | mem_is_branch) == core.mem_unit0.mem_insn_o.bubble
   );
   mem_pc_check: assert property(
     @(posedge clk) disable iff(!rst_n)
@@ -298,7 +312,6 @@ module isa (
   //  Logics for verifying instructions
   //-------------------------------------
 
-  logic mem_bubble_q;
   logic [4:0] wb_rd_idx;
   logic [31:0] wb_value;
   logic wb_we;
@@ -306,14 +319,6 @@ module isa (
   logic [4:0] gold_wb_rs1_idx, gold_wb_rs2_idx, gold_wb_rd_idx;
   logic [31:0] gold_wb_rs1_value, gold_wb_rs2_value;
   logic gold_wb_we;
-
-  always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-      mem_bubble_q <= 1'b1;
-    end else begin
-      mem_bubble_q <= mem_bubble;
-    end
-  end
 
   assign wb_rd_idx = core.wb_unit.wb_dst_o;
   assign wb_value = core.wb_unit.wb_r_o;
@@ -336,7 +341,7 @@ module isa (
   logic [31:0] andi_imm;
   logic [31:0] andi_golden;
 
-  assign andi_trigger = (wb_inst[6:0] == 7'b0010011) && (wb_inst[14:12] == 3'b111) && !mem_bubble_q;
+  assign andi_trigger = (wb_inst[6:0] == 7'b0010011) && (wb_inst[14:12] == 3'b111) && !wb_bubble;
   assign andi_imm = {{20{wb_inst[31]}}, wb_inst[31:20]};
   assign andi_golden = gold_wb_rs1_value & andi_imm;
 
@@ -374,7 +379,7 @@ module isa (
   logic [31:0] auipc_imm;
   logic [31:0] auipc_golden;
 
-  assign auipc_trigger = (wb_inst[6:0] == 7'b0010111) && !mem_bubble_q;
+  assign auipc_trigger = (wb_inst[6:0] == 7'b0010111) && !wb_bubble;
   assign auipc_imm = {wb_inst[31:12], 12'b0};
   assign auipc_golden = wb_pc + auipc_imm;
 

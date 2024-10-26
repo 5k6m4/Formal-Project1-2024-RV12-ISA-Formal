@@ -6,13 +6,13 @@ check_cov -init -type all
 # Regfile Check?
 set REGFILE_CHECK 0
 # Pipeline follower check?
-set PIPELINE_FOLLOWER_CHECK 0
+set PIPELINE_FOLLOWER_CHECK 1
 # ISA formal options
-set ANDI_CHECK 0
+set ANDI_CHECK 1
 #set BGE_CHECK 0
 set JAL_CHECK 1
 #set LBU_CHECK 0
-set AUIPC_CHECK 0
+set AUIPC_CHECK 1
 
 # analyze source code
 analyze -sv [glob ./source/RV12/rtl/verilog/pkg/*sv]
