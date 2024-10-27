@@ -46,7 +46,10 @@ eval $ANALYZE_COMMAND
 
 # elaborate top module
 elaborate -top  riscv_top_ahb3lite \
-          -bbox_m dmem_ctrl_inst
+          -bbox_m imem_ctrl_inst \
+          -bbox_m dmem_ctrl_inst \
+          -bbox_m ibiu_inst \
+          -bbox_m dbiu_inst
 
 # turn off debug mode
 assume {core.du_stall == 1'b0}
