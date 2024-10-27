@@ -14,6 +14,7 @@ module isa (
   logic [31:0] if_pc, pd_pc, id_pc, ex_pc, mem_pc, wb_pc;
   logic [31:0] if_inst, pd_inst, id_inst, ex_inst, mem_inst, wb_inst;
   logic if_bubble, pd_bubble, id_bubble, ex_bubble, mem_bubble, wb_bubble;
+  logic id_bubble_q;
   logic id_stall;
   logic bu_flush;
   logic ex_exception;
@@ -45,8 +46,8 @@ module isa (
   end
 
   // ID stage
-  logic id_bubble_q;
   assign id_stall = core.id_unit.id_stall_o;
+  assign id_bubble = id_bubble_q | bu_flush;
   always_ff @(posedge clk or negedge rst_n) begin
     if(!rst_n) begin
       id_pc <= 32'h200; //PC_INIT
@@ -65,7 +66,6 @@ module isa (
       id_bubble_q <= pd_bubble;
     end
   end
-  assign id_bubble = id_bubble_q | bu_flush;
 
   // EX stage
   assign bu_flush = core.ex_units.bu_flush_o;
@@ -335,6 +335,7 @@ module isa (
 
   assign gold_wb_we = gold_wb_rd_idx != 5'b0;
 
+`ifdef ANDI_CHECK
   //----------------
   //  I-type: andi
   //----------------
@@ -347,7 +348,6 @@ module isa (
   assign andi_imm = {{20{wb_inst[31]}}, wb_inst[31:20]};
   assign andi_golden = gold_wb_rs1_value & andi_imm;
 
-`ifdef ANDI_CHECK
   //---------------------------------------------
   //  Properties for verifying instruction andi
   //---------------------------------------------
@@ -372,7 +372,8 @@ module isa (
     wb_value == andi_golden
   );
 `endif
-  
+
+`ifdef AUIPC_CHECK
   //-----------------
   //  U-type: auipc
   //-----------------
@@ -385,7 +386,6 @@ module isa (
   assign auipc_imm = {wb_inst[31:12], 12'b0};
   assign auipc_golden = wb_pc + auipc_imm;
 
-`ifdef AUIPC_CHECK
   //----------------------------------------------
   //  Properties for verifying instruction auipc
   //----------------------------------------------
@@ -412,6 +412,7 @@ module isa (
   );
 `endif
 
+`ifdef JAL_CHECK
   //-----------------
   //  J-type: jal
   //-----------------
@@ -445,7 +446,6 @@ module isa (
     end
   end
 
-`ifdef JAL_CHECK
   //--------------------------------------------
   //  Properties for verifying instruction jal  
   //--------------------------------------------
@@ -485,21 +485,19 @@ module isa (
   //---------------
   
   logic [31:0] ex_load_addr, mem_load_addr, wb_load_addr; // used to compare with gold_load_addr
-  logic [31:0] ex_load_data, mem_load_data, wb_load_data; // used to compute gold_wb_value
+  logic [31:0] ex_load_data, wb_load_data; // used to compute gold_wb_value
 
   assign ex_load_addr = core.ex_units.dmem_adr_o;
   assign ex_load_data = core.ex_units.dmem_q_i;
   always_ff @(posedge clk or negedge rst_n) begin
     if(!rst_n) begin
       mem_load_addr <= 32'b0;
-      mem_load_data <= 32'b0;
       wb_load_addr <= 32'b0;
       wb_load_data <= 32'b0;
     end else begin
       mem_load_addr <= ex_load_addr;
-      mem_load_data <= ex_load_data;
       wb_load_addr <= mem_load_addr;
-      wb_load_data <= mem_load_data;
+      wb_load_data <= ex_load_data;
     end
   end
   
@@ -511,13 +509,13 @@ module isa (
   assign lbu_trigger = (wb_inst[6:0] == 7'b0000011) && (wb_inst[14:12] == 3'b100) && !wb_bubble;
   assign lbu_imm = {{20{wb_inst[31]}}, wb_inst[31:20]};
   assign lbu_load_addr_golden = gold_wb_rs1_value + lbu_imm;
-  
+
   always_comb begin
     case(lbu_load_addr_golden[1:0])
       2'b00: lbu_wb_value_golden = {24'b0, wb_load_data[7:0]};
-      2'b01: lbu_wb_value_golden = {16'b0, wb_load_data[15:8], 8'b0};
-      2'b10: lbu_wb_value_golden = {8'b0, wb_load_data[23:16], 16'b0};
-      2'b11: lbu_wb_value_golden = {wb_load_data[31:24], 20'b0};
+      2'b01: lbu_wb_value_golden = {24'b0, wb_load_data[15:8]};
+      2'b10: lbu_wb_value_golden = {24'b0, wb_load_data[23:16]};
+      2'b11: lbu_wb_value_golden = {24'b0, wb_load_data[31:24]};
     endcase
   end
   
@@ -553,6 +551,7 @@ module isa (
     wb_value == lbu_wb_value_golden
   );
 `endif
+
 endmodule
 
 bind riscv_top_ahb3lite isa isa_prop(
