@@ -333,7 +333,7 @@ module isa (
   assign gold_wb_rs1_value = regfile[gold_wb_rs1_idx];
   assign gold_wb_rs2_value = regfile[gold_wb_rs2_idx];
 
-  assign gold_wb_we = (~mem_bubble) & (|gold_wb_rd_idx);
+  assign gold_wb_we = gold_wb_rd_idx != 5'b0;
 
   //----------------
   //  I-type: andi
@@ -354,8 +354,8 @@ module isa (
   andi_we: assert property(
     @(posedge clk) disable iff(!rst_n)
     andi_trigger
-    |=>
-    wb_we == $past(gold_wb_we)
+    |->
+    wb_we == gold_wb_we
   );
 
   andi_rd_idx: assert property(
@@ -393,8 +393,8 @@ module isa (
   auipc_we: assert property(
     @(posedge clk) disable iff(!rst_n)
     auipc_trigger
-    |=>
-    wb_we == $past(gold_wb_we)
+    |->
+    wb_we == gold_wb_we
   );
 
   auipc_rd: assert property(
@@ -453,8 +453,8 @@ module isa (
   jal_we: assert property(
     @(posedge clk) disable iff(!rst_n)
     jal_trigger
-    |=>
-    wb_we == $past(gold_wb_we)
+    |->
+    wb_we == gold_wb_we
   );
 
   jal_rd: assert property(
