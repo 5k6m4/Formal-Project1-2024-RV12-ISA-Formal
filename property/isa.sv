@@ -45,6 +45,7 @@ module isa (
   end
 
   // ID stage
+  logic id_bubble_q;
   assign id_stall = core.id_unit.id_stall_o;
   always_ff @(posedge clk or negedge rst_n) begin
     if(!rst_n) begin
@@ -57,13 +58,14 @@ module isa (
   end
   always_ff @(posedge clk or negedge rst_n) begin
     if(!rst_n) begin
-      id_bubble <= 1'b1;
+      id_bubble_q <= 1'b1;
     end else if(bu_flush || id_stall || ex_exception) begin
-      id_bubble <= 1'b1;
+      id_bubble_q <= 1'b1;
     end else begin
-      id_bubble <= pd_bubble;
+      id_bubble_q <= pd_bubble;
     end
   end
+  assign id_bubble = id_bubble_q | bu_flush;
 
   // EX stage
   assign bu_flush = core.ex_units.bu_flush_o;
