@@ -6,7 +6,7 @@ check_cov -init -type all
 # Regfile Check?
 set REGFILE_CHECK 0
 # Pipeline follower check?
-set PIPELINE_FOLLOWER_CHECK 0
+set PIPELINE_FOLLOWER_CHECK 1
 # ISA formal options
 set ANDI_CHECK 0
 #set BGE_CHECK 0
@@ -45,7 +45,8 @@ eval $ANALYZE_COMMAND
 #analyze -sv [glob ./property/isa.sv]
 
 # elaborate top module
-elaborate -top  riscv_top_ahb3lite
+elaborate -top  riscv_top_ahb3lite \
+          -bbox_m dmem_ctrl_inst
 
 # turn off debug mode
 assume {core.du_stall == 1'b0}
@@ -66,6 +67,10 @@ assume {dmem_ctrl_inst.pma_exception == 1'b0}
 stopat core.if_unit.imem_parcel_valid_i
 assume {core.if_unit.imem_parcel_valid_i == 1'b1}
 
+# dcache always hit
+stopat core.dmem_ack_i
+assume {core.dmem_ack_i == 1'b1}
+
 # always fetch legal instruction
 stopat core.if_unit.imem_parcel_i
 assume {core.if_unit.imem_parcel_i[6:0] == 7'b0110111 ||
@@ -75,27 +80,23 @@ assume {core.if_unit.imem_parcel_i[6:0] == 7'b0110111 ||
         core.if_unit.imem_parcel_i[6:0] == 7'b1100111 ||
         (core.if_unit.imem_parcel_i[6:0] == 7'b1100011
             && core.if_unit.imem_parcel_i[14:12] != 3'b010
-            && core.if_unit.imem_parcel_i[14:12] != 3'b011
-            && core.if_unit.imem_parcel_i[8] == 1'b0) ||
+            && core.if_unit.imem_parcel_i[14:12] != 3'b011) ||
+        (core.if_unit.imem_parcel_i[6:0] == 7'b0000011
+           && core.if_unit.imem_parcel_i[14:12] != 3'b011
+           && core.if_unit.imem_parcel_i[14:12] != 3'b110
+           && core.if_unit.imem_parcel_i[14:12] != 3'b111) ||
+       (core.if_unit.imem_parcel_i[6:0] == 7'b0100011
+           && (core.if_unit.imem_parcel_i[14:12] == 3'b000
+               || core.if_unit.imem_parcel_i[14:12] == 3'b001
+               || core.if_unit.imem_parcel_i[14:12] == 3'b010)) ||
         core.if_unit.imem_parcel_i[6:0] == 7'b0010011 ||
         (core.if_unit.imem_parcel_i[6:0] == 7'b0110011
             && (core.if_unit.imem_parcel_i[31:25] == 7'b0000000
                 || core.if_unit.imem_parcel_i[31:25] == 7'b0100000)) ||
         (core.if_unit.imem_parcel_i[6:0] == 7'b0001111
-            && (core.if_unit.imem_parcel_i[14:12] == 3'b000
-                || core.if_unit.imem_parcel_i[14:12] == 3'b001))}
-      # Load, Store
-      #  ||(core.if_unit.imem_parcel_i[6:0] == 7'b0000011
-      #      && core.if_unit.imem_parcel_i[14:12] != 3'b011
-      #      && core.if_unit.imem_parcel_i[14:12] != 3'b110
-      #      && core.if_unit.imem_parcel_i[14:12] != 3'b111) ||
-      #  (core.if_unit.imem_parcel_i[6:0] == 7'b0100011
-      #      && (core.if_unit.imem_parcel_i[14:12] == 3'b000
-      #          || core.if_unit.imem_parcel_i[14:12] == 3'b001
-      #          || core.if_unit.imem_parcel_i[14:12] == 3'b010))}
-      # Zicsr
-      #  ||(core.if_unit.imem_parcel_i[6:0] == 7'b1110011
-      #      && core.if_unit.imem_parcel_i[14:12] != 3'b100)}
+            && core.if_unit.imem_parcel_i[14:12] == 3'b000) ||
+        (core.if_unit.imem_parcel_i[6:0] == 7'b1110011
+            && core.if_unit.imem_parcel_i[14:12] == 3'b000)}
 
 # set clock and reset signal
 clock HCLK
