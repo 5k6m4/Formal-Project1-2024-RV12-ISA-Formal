@@ -479,6 +479,80 @@ module isa (
   ); 
 `endif
 
+`ifdef LBU_CHECK
+  //---------------
+  //  L-type: lbu
+  //---------------
+  
+  logic [31:0] ex_load_addr, mem_load_addr, wb_load_addr; // used to compare with gold_load_addr
+  logic [31:0] ex_load_data, mem_load_data, wb_load_data; // used to compute gold_wb_value
+
+  assign ex_load_addr = core.ex_units.dmem_adr_o;
+  assign ex_load_data = core.ex_units.dmem_q_i;
+  always_ff @(posedge clk or negedge rst_n) begin
+    if(!rst_n) begin
+      mem_load_addr <= 32'b0;
+      mem_load_data <= 32'b0;
+      wb_load_addr <= 32'b0;
+      wb_load_data <= 32'b0;
+    end else begin
+      mem_load_addr <= ex_load_addr;
+      mem_load_data <= ex_load_data;
+      wb_load_addr <= mem_load_addr;
+      wb_load_data <= mem_load_data;
+    end
+  end
+  
+  logic lbu_trigger;
+  logic [31:0] lbu_imm;
+  logic [31:0] lbu_load_addr_golden;
+  logic [31:0] lbu_wb_value_golden;
+
+  assign lbu_trigger = (wb_inst[6:0] == 7'b0000011) && (wb_inst[14:12] == 3'b100) && !wb_bubble;
+  assign lbu_imm = {{20{wb_inst[31]}}, wb_inst[31:20]};
+  assign lbu_load_addr_golden = gold_wb_rs1_value + lbu_imm;
+  
+  always_comb begin
+    case(lbu_load_addr_golden[1:0])
+      2'b00: lbu_wb_value_golden = {24'b0, wb_load_data[7:0]};
+      2'b01: lbu_wb_value_golden = {16'b0, wb_load_data[15:8], 8'b0};
+      2'b10: lbu_wb_value_golden = {8'b0, wb_load_data[23:16], 16'b0};
+      2'b11: lbu_wb_value_golden = {wb_load_data[31:24], 20'b0};
+    endcase
+  end
+  
+  //--------------------------------------------
+  //  Properties for verifying instruction lbu  
+  //--------------------------------------------
+
+  lbu_load_addr: assert property(
+    @(posedge clk) disable iff(!rst_n)
+    lbu_trigger
+    |->
+    wb_load_addr == lbu_load_addr_golden
+  );
+
+  lbu_we: assert property(
+    @(posedge clk) disable iff(!rst_n)
+    lbu_trigger
+    |->
+    wb_we == gold_wb_we
+  );
+
+  lbu_rd: assert property(
+    @(posedge clk) disable iff(!rst_n)
+    lbu_trigger
+    |->
+    wb_rd_idx == gold_wb_rd_idx
+  );
+
+  lbu_wb_value: assert property(
+    @(posedge clk) disable iff(!rst_n)
+    lbu_trigger
+    |->
+    wb_value == lbu_wb_value_golden
+  );
+`endif
 endmodule
 
 bind riscv_top_ahb3lite isa isa_prop(
