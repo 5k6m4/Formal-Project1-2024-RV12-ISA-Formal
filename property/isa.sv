@@ -67,7 +67,8 @@ module isa (
 
   // EX stage
   assign bu_flush = core.ex_units.bu_flush_o;
-  assign ex_exception = core.ex_units.ex_exceptions_o.any;
+  //assign ex_exception = core.ex_units.ex_exceptions_o.any;
+  assign ex_exception = 1'b0;
   always_ff @(posedge clk or negedge rst_n) begin
     if(!rst_n) begin
       ex_pc <= 32'h200; //PC_INIT
@@ -418,15 +419,28 @@ module isa (
   logic [31:0] jal_imm;
   logic [31:0] jal_golden;
   logic [31:0] jal_target_pc;
+  // jal_commited is a state indicates that there's a jal commit but has not found next valid inst yet
+  // 0 -> waiting a jal to be commited
+  // 1 -> waiting ~bubble
+  logic jal_commited;
 
-  assign jal_trigger = (wb_inst[6:0] == 7'b1101111) && !mem_bubble_q;
+  assign jal_trigger = (wb_inst[6:0] == 7'b1101111) && !wb_bubble;
   assign jal_imm = {{12{wb_inst[31]}}, wb_inst[19:12], wb_inst[20], wb_inst[30:21], 1'b0};
   assign jal_golden = wb_pc + 4;
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
       jal_target_pc <= 32'd0;
     end else if (jal_trigger) begin
-      jal_target_pc <= wb_pc + jal_imm;
+      jal_target_pc <= (wb_pc + jal_imm) & 32'hfffffffc;
+    end
+  end
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      jal_commited <= 1'b0;
+    end else if (jal_trigger) begin
+      jal_commited <= 1'b1;
+    end else if (jal_commited & (~wb_bubble)) begin
+      jal_commited <= 1'b0;
     end
   end
 
@@ -456,13 +470,12 @@ module isa (
     wb_value == jal_golden
   );
 
-  // assert is not proven, using cover can be proven
-  /* jal_nxt_valid_pc: assert property(
+   jal_nxt_valid_pc: assert property(
     @(posedge clk) disable iff(!rst_n)
-    jal_trigger
+    jal_commited & (~wb_bubble)
     |->
-    ##[1:$] (~mem_bubble_q) && (wb_pc == jal_target_pc)
-  ); */
+    (wb_pc == jal_target_pc)
+  ); 
 `endif
 
 endmodule

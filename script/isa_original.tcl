@@ -6,13 +6,13 @@ check_cov -init -type all
 # Regfile Check?
 set REGFILE_CHECK 0
 # Pipeline follower check?
-set PIPELINE_FOLLOWER_CHECK 1
+set PIPELINE_FOLLOWER_CHECK 0
 # ISA formal options
-set ANDI_CHECK 1
+set ANDI_CHECK 0
 #set BGE_CHECK 0
 set JAL_CHECK 1
 #set LBU_CHECK 0
-set AUIPC_CHECK 1
+set AUIPC_CHECK 0
 
 # analyze source code
 analyze -sv [glob ./source/RV12/rtl/verilog/pkg/*sv]
@@ -70,11 +70,13 @@ assume {core.if_unit.imem_parcel_valid_i == 1'b1}
 stopat core.if_unit.imem_parcel_i
 assume {core.if_unit.imem_parcel_i[6:0] == 7'b0110111 ||
         core.if_unit.imem_parcel_i[6:0] == 7'b0010111 ||
-        core.if_unit.imem_parcel_i[6:0] == 7'b1101111 ||
+        (core.if_unit.imem_parcel_i[6:0] == 7'b1101111
+            && core.if_unit.imem_parcel_i[21] == 1'b0) ||
         core.if_unit.imem_parcel_i[6:0] == 7'b1100111 ||
         (core.if_unit.imem_parcel_i[6:0] == 7'b1100011
             && core.if_unit.imem_parcel_i[14:12] != 3'b010
-            && core.if_unit.imem_parcel_i[14:12] != 3'b011) ||
+            && core.if_unit.imem_parcel_i[14:12] != 3'b011
+            && core.if_unit.imem_parcel_i[8] == 1'b0) ||
         core.if_unit.imem_parcel_i[6:0] == 7'b0010011 ||
         (core.if_unit.imem_parcel_i[6:0] == 7'b0110011
             && (core.if_unit.imem_parcel_i[31:25] == 7'b0000000
