@@ -412,6 +412,73 @@ module isa (
   );
 `endif
 
+  //-----------------
+  //  J-type: jal
+  //-----------------
+
+  logic jal_trigger;
+  logic [31:0] jal_imm;
+  logic [31:0] jal_golden;
+  logic [31:0] jal_target_pc;
+  // jal_commited is a state indicates that there's a jal commit but has not found next valid inst yet
+  // 0 -> waiting a jal to be commited
+  // 1 -> waiting ~bubble
+  logic jal_commited;
+
+  assign jal_trigger = (wb_inst[6:0] == 7'b1101111) && !wb_bubble;
+  assign jal_imm = {{12{wb_inst[31]}}, wb_inst[19:12], wb_inst[20], wb_inst[30:21], 1'b0};
+  assign jal_golden = wb_pc + 4;
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      jal_target_pc <= 32'd0;
+    end else if (jal_trigger) begin
+      jal_target_pc <= (wb_pc + jal_imm) & 32'hfffffffc;
+    end
+  end
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      jal_commited <= 1'b0;
+    end else if (jal_trigger) begin
+      jal_commited <= 1'b1;
+    end else if (jal_commited & (~wb_bubble)) begin
+      jal_commited <= 1'b0;
+    end
+  end
+
+`ifdef JAL_CHECK
+  //--------------------------------------------
+  //  Properties for verifying instruction jal  
+  //--------------------------------------------
+
+  jal_we: assert property(
+    @(posedge clk) disable iff(!rst_n)
+    jal_trigger
+    |=>
+    wb_we == $past(gold_wb_we)
+  );
+
+  jal_rd: assert property(
+    @(posedge clk) disable iff(!rst_n)
+    jal_trigger
+    |->
+    wb_rd_idx == gold_wb_rd_idx
+  );
+
+  jal_wb_value: assert property(
+    @(posedge clk) disable iff(!rst_n)
+    jal_trigger
+    |->
+    wb_value == jal_golden
+  );
+
+   jal_nxt_valid_pc: assert property(
+    @(posedge clk) disable iff(!rst_n)
+    jal_commited & (~wb_bubble)
+    |->
+    (wb_pc == jal_target_pc)
+  ); 
+`endif
+
 endmodule
 
 bind riscv_top_ahb3lite isa isa_prop(
