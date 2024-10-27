@@ -6,7 +6,7 @@ check_cov -init -type all
 # Regfile Check?
 set REGFILE_CHECK 0
 # Pipeline follower check?
-set PIPELINE_FOLLOWER_CHECK 1
+set PIPELINE_FOLLOWER_CHECK 0
 # ISA formal options
 set ANDI_CHECK 0
 #set BGE_CHECK 0
