@@ -477,6 +477,59 @@ module isa (
     |->
     (wb_pc == jal_target_pc)
   ); 
+  
+  //---------------
+  //  B-type: bge  
+  //---------------
+
+  logic bge_trigger;
+  logic [31:0] bge_imm;
+  logic [31:0] bge_target_pc;
+  logic bge_taken;
+  logic bge_commited;
+
+  assign bge_trigger = ((wb_inst[6:0] == 7'b1100011) && (wb_inst[14:12] == 3'b101)) && !wb_bubble;
+  assign bge_imm = {{20{wb_inst[31]}}, wb_inst[7], wb_inst[30:25], wb_inst[11:8], 1'b0};
+  assign bge_taken = ($signed(gold_wb_rs1_value) >= $signed(gold_wb_rs2_value));
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      bge_target_pc <= 32'd0;
+    end else if (bge_trigger) begin
+      bge_target_pc <= bge_taken? (wb_pc + bge_imm):(wb_pc + 32'd4);// & 32'hfffffffc;
+      bge_commited <= 1'b0;
+    end else if (bge_trigger) begin
+      bge_commited <= 1'b1;
+    end else if (bge_commited & (~wb_bubble)) begin
+      bge_commited <= 1'b0;
+    end
+  end
+
+`ifdef BGE_CHECK
+  //--------------------------------------------
+  //  Properties for verifying instruction bge  
+  //--------------------------------------------
+  sequence bge_trigger_followed_by_many_bubbles;
+    bge_trigger ##1 (wb_bubble [* 1:$]) ##1 (~wb_bubble);
+  endsequence : bge_trigger_followed_by_many_bubbles
+  
+  sequence bge_trigger_followed_by_no_bubbles;
+    bge_trigger ##1 (~wb_bubble);
+  endsequence : bge_trigger_followed_by_no_bubbles
+  
+  bge_nxt_valid_pc: assert property(
+    @(posedge clk) disable iff(!rst_n)
+    bge_trigger_followed_by_many_bubbles or 
+    bge_trigger_followed_by_no_bubbles
+    |->
+    (wb_pc == bge_target_pc)
+  );
+
+  /*bge_nxt_valid_pc: assert property(
+    @(posedge clk) disable iff(!rst_n)
+    bge_commited & (~wb_bubble)
+    |->
+    (wb_pc == bge_target_pc)
+  );*/ 
 `endif
 
 endmodule
