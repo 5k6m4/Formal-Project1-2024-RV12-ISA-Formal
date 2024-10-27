@@ -80,8 +80,9 @@ assume {core.if_unit.imem_parcel_i[6:0] == 7'b0110111 ||
             && (core.if_unit.imem_parcel_i[31:25] == 7'b0000000
                 || core.if_unit.imem_parcel_i[31:25] == 7'b0100000)) ||
         (core.if_unit.imem_parcel_i[6:0] == 7'b0001111
-            && (core.if_unit.imem_parcel_i[14:12] == 3'b000
-                || core.if_unit.imem_parcel_i[14:12] == 3'b001))}
+            && core.if_unit.imem_parcel_i[14:12] == 3'b000) ||
+        (core.if_unit.imem_parcel_i[6:0] == 7'b1110011
+            && core.if_unit.imem_parcel_i[14:12] == 3'b000)}
       # Load, Store
       #  ||(core.if_unit.imem_parcel_i[6:0] == 7'b0000011
       #      && core.if_unit.imem_parcel_i[14:12] != 3'b011
