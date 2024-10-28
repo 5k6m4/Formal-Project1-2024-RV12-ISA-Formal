@@ -552,6 +552,38 @@ module isa (
   );
 `endif
 
+`ifdef NOT_BRANCH_PC_CHECK
+  logic not_branch_trigger;
+  logic [31:0] not_branch_pc;
+
+  assign not_branch_trigger = ((wb_inst[6:0] != 7'b1101111) &&
+                               (wb_inst[6:0] != 7'b1100111) &&
+                               (wb_inst[6:0] != 7'b1100011)) && !wb_bubble;
+  always_ff @(posedge clk or negedge rst_n) begin
+    if(!rst_n) begin
+      not_branch_pc <= 32'b0;
+    end else if(not_branch_trigger) begin
+      not_branch_pc <= wb_pc;
+    end
+  end
+  
+  sequence not_branch_trigger_followed_no_bubble;
+    not_branch_trigger ##1 (wb_bubble [*1:$]) ##1 !wb_bubble;
+  endsequence
+
+  sequence not_branch_trigger_followed_bubble;
+    not_branch_trigger ##1 (!wb_bubble);
+  endsequence
+
+  not_branch_next_pc: assert property(
+    @(posedge clk) disable iff(!rst_n)
+    not_branch_trigger_followed_no_bubble or
+    not_branch_trigger_followed_bubble
+    |->
+    (not_branch_pc + 32'd4) == core.wb_unit.wb_pc_o
+  );
+`endif
+
 endmodule
 
 bind riscv_top_ahb3lite isa isa_prop(
