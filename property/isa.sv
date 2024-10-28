@@ -137,76 +137,90 @@ module isa (
   //----------------------------------------------
   //  Properties for verifying pipeline follower  
   //----------------------------------------------
+
   pd_bubble_check: assert property(
     @(posedge clk) disable iff(!rst_n)
     pd_bubble == core.pd_unit.pd_insn_o.bubble
   );
+
   pd_pc_check: assert property(
     @(posedge clk) disable iff(!rst_n)
     (~pd_bubble) 
     |->
     pd_pc == core.pd_unit.pd_pc_o
   );
+
   pd_inst_check: assert property(
     @(posedge clk) disable iff(!rst_n)
     (~pd_bubble) 
     |->
     pd_inst == core.pd_unit.pd_insn_o.instr
   );
+
   id_bubble_check: assert property(
     @(posedge clk) disable iff(!rst_n)
     id_bubble == core.id_unit.id_insn_o.bubble
   );
+
   id_pc_check: assert property(
     @(posedge clk) disable iff(!rst_n)
     (~id_bubble) 
     |->
     id_pc == core.id_unit.id_pc_o
   );
+
   id_inst_check: assert property(
     @(posedge clk) disable iff(!rst_n)
     (~id_bubble) 
     |->
     id_inst == core.id_unit.id_insn_o.instr
   );
+
   ex_bubble_check: assert property(
     @(posedge clk) disable iff(!rst_n)
     (ex_bubble | ex_is_branch) == core.ex_units.ex_insn_o.bubble
   );
+
   ex_pc_check: assert property(
     @(posedge clk) disable iff(!rst_n)
     (~ex_bubble) 
     |->
     ex_pc == core.ex_units.ex_pc_o
   );
+
   ex_inst_check: assert property(
     @(posedge clk) disable iff(!rst_n)
     (~ex_bubble) 
     |->
     ex_inst == core.ex_units.ex_insn_o.instr
   );
+
   mem_bubble_check: assert property(
     @(posedge clk) disable iff(!rst_n)
     (mem_bubble | mem_is_branch) == core.mem_unit0.mem_insn_o.bubble
   );
+
   mem_pc_check: assert property(
     @(posedge clk) disable iff(!rst_n)
     (~mem_bubble) 
     |->
     mem_pc == core.mem_unit0.mem_pc_o
   );
+
   mem_inst_check: assert property(
     @(posedge clk) disable iff(!rst_n)
     (~mem_bubble) 
     |->
     mem_inst == core.mem_unit0.mem_insn_o.instr
   );
+
   wb_pc_check: assert property(
     @(posedge clk) disable iff(!rst_n)
     (~mem_bubble)
     |=>
     wb_pc == core.wb_unit.wb_pc_o
   );
+
   wb_inst_check: assert property(
     @(posedge clk) disable iff(!rst_n)
     (~mem_bubble)
@@ -227,7 +241,7 @@ module isa (
   logic rf_we;
   logic [4:0] rf_stable_reg_idx;
 
-  // get the value stored in RV12 register file
+  // Direct reference to CPU regfile registers
   always_comb begin
     regfile[0] = 32'd0;
     regfile[1] = core.int_rf.rf[1];
@@ -280,6 +294,7 @@ module isa (
   //------------------------------------------
   //  Properties for verifying register file
   //------------------------------------------
+
   rf_read_rs1: assert property(
     @(posedge clk) disable iff(!rst_n)
     (($past(rf_pd_stall) == 1'b0) && (rf_id_stall == 1'b0))
@@ -351,6 +366,7 @@ module isa (
   //---------------------------------------------
   //  Properties for verifying instruction andi
   //---------------------------------------------
+
   andi_we: assert property(
     @(posedge clk) disable iff(!rst_n)
     andi_trigger
@@ -410,73 +426,6 @@ module isa (
     |->
     wb_value == auipc_golden
   );
-`endif
-
-`ifdef JAL_CHECK
-  //-----------------
-  //  J-type: jal
-  //-----------------
-
-  logic jal_trigger;
-  logic [31:0] jal_imm;
-  logic [31:0] jal_golden;
-  logic [31:0] jal_target_pc;
-  // jal_commited is a state indicates that there's a jal commit but has not found next valid inst yet
-  // 0 -> waiting a jal to be commited
-  // 1 -> waiting ~bubble
-  logic jal_commited;
-
-  assign jal_trigger = (wb_inst[6:0] == 7'b1101111) && !wb_bubble;
-  assign jal_imm = {{12{wb_inst[31]}}, wb_inst[19:12], wb_inst[20], wb_inst[30:21], 1'b0};
-  assign jal_golden = wb_pc + 4;
-  always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-      jal_target_pc <= 32'd0;
-    end else if (jal_trigger) begin
-      jal_target_pc <= (wb_pc + jal_imm) & 32'hfffffffc;
-    end
-  end
-  always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-      jal_commited <= 1'b0;
-    end else if (jal_trigger) begin
-      jal_commited <= 1'b1;
-    end else if (jal_commited & (~wb_bubble)) begin
-      jal_commited <= 1'b0;
-    end
-  end
-
-  //--------------------------------------------
-  //  Properties for verifying instruction jal  
-  //--------------------------------------------
-
-  jal_we: assert property(
-    @(posedge clk) disable iff(!rst_n)
-    jal_trigger
-    |->
-    wb_we == gold_wb_we
-  );
-
-  jal_rd: assert property(
-    @(posedge clk) disable iff(!rst_n)
-    jal_trigger
-    |->
-    wb_rd_idx == gold_wb_rd_idx
-  );
-
-  jal_wb_value: assert property(
-    @(posedge clk) disable iff(!rst_n)
-    jal_trigger
-    |->
-    wb_value == jal_golden
-  );
-
-   jal_nxt_valid_pc: assert property(
-    @(posedge clk) disable iff(!rst_n)
-    jal_commited & (~wb_bubble)
-    |->
-    (wb_pc == jal_target_pc)
-  ); 
 `endif
 
 `ifdef LBU_CHECK
@@ -549,6 +498,120 @@ module isa (
     lbu_trigger
     |->
     wb_value == lbu_wb_value_golden
+  );
+`endif
+
+`ifdef JAL_CHECK
+  //-----------------
+  //  J-type: jal
+  //-----------------
+
+  logic jal_trigger;
+  logic [31:0] jal_imm;
+  logic [31:0] jal_golden;
+  logic [31:0] jal_target_pc;
+  // jal_commited is a state indicates that there's a jal commit but has not found next valid inst yet
+  // 0 -> waiting a jal to be commited
+  // 1 -> waiting ~bubble
+  logic jal_commited;
+
+  assign jal_trigger = (wb_inst[6:0] == 7'b1101111) && !wb_bubble;
+  assign jal_imm = {{12{wb_inst[31]}}, wb_inst[19:12], wb_inst[20], wb_inst[30:21], 1'b0};
+  assign jal_golden = wb_pc + 4;
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      jal_target_pc <= 32'd0;
+    end else if (jal_trigger) begin
+      jal_target_pc <= (wb_pc + jal_imm) & 32'hfffffffc;
+    end
+  end
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      jal_commited <= 1'b0;
+    end else if (jal_trigger) begin
+      jal_commited <= 1'b1;
+    end else if (jal_commited & (~wb_bubble)) begin
+      jal_commited <= 1'b0;
+    end
+  end
+
+  //--------------------------------------------
+  //  Properties for verifying instruction jal  
+  //--------------------------------------------
+
+  jal_we: assert property(
+    @(posedge clk) disable iff(!rst_n)
+    jal_trigger
+    |->
+    wb_we == gold_wb_we
+  );
+
+  jal_rd: assert property(
+    @(posedge clk) disable iff(!rst_n)
+    jal_trigger
+    |->
+    wb_rd_idx == gold_wb_rd_idx
+  );
+
+  jal_wb_value: assert property(
+    @(posedge clk) disable iff(!rst_n)
+    jal_trigger
+    |->
+    wb_value == jal_golden
+  );
+
+  jal_nxt_valid_pc: assert property(
+    @(posedge clk) disable iff(!rst_n)
+    jal_commited & (~wb_bubble)
+    |->
+    (wb_pc == jal_target_pc)
+  );
+`endif
+
+`ifdef BGE_CHECK
+  //---------------
+  //  B-type: bge  
+  //---------------
+
+  logic bge_trigger;
+  logic [31:0] bge_imm;
+  logic [31:0] bge_target_pc;
+  logic bge_taken;
+  logic bge_commited;
+
+  assign bge_trigger = ((wb_inst[6:0] == 7'b1100011) && (wb_inst[14:12] == 3'b101)) && !wb_bubble;
+  assign bge_imm = {{20{wb_inst[31]}}, wb_inst[7], wb_inst[30:25], wb_inst[11:8], 1'b0};
+  assign bge_taken = ($signed(gold_wb_rs1_value) >= $signed(gold_wb_rs2_value));
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      bge_target_pc <= 32'd0;
+    end else if (bge_trigger) begin
+      bge_target_pc <= bge_taken? (wb_pc + bge_imm):(wb_pc + 32'd4);
+      bge_commited <= 1'b0;
+    end else if (bge_trigger) begin
+      bge_commited <= 1'b1;
+    end else if (bge_commited & (~wb_bubble)) begin
+      bge_commited <= 1'b0;
+    end
+  end
+
+  //--------------------------------------------
+  //  Properties for verifying instruction bge  
+  //--------------------------------------------
+  sequence bge_trigger_followed_by_many_bubbles;
+    bge_trigger ##1 (wb_bubble [* 1:$]) ##1 (~wb_bubble);
+  endsequence : bge_trigger_followed_by_many_bubbles
+  
+  sequence bge_trigger_followed_by_no_bubbles;
+    bge_trigger ##1 (~wb_bubble);
+  endsequence : bge_trigger_followed_by_no_bubbles
+  
+  bge_nxt_valid_pc: assert property(
+    @(posedge clk) disable iff(!rst_n)
+    bge_trigger_followed_by_many_bubbles or 
+    bge_trigger_followed_by_no_bubbles
+    |->
+    (wb_pc == bge_target_pc)
   );
 `endif
 
